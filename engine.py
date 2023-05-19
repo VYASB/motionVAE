@@ -18,42 +18,35 @@ import torch
 
 #     return BCE+KLD
 
-def final_loss(recon_x, x, mu, log_var):
-    BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
-    KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
-    return BCE + KLD
 
-def train(model, dataloader, epoch, optimizer):
+def train(model, train_loader, optimizer):
     model.train()
     train_loss = 0
-    for batch_idx, (data, _) in enumerate(dataloader):
-        data = data.cuda()
-        optimizer.zero_grad()
-        
-        recon_batch, mu, log_var = model(data)
-        loss = final_loss(recon_batch, data, mu, log_var)
-        
-        loss.backward()
-        train_loss += loss.item()
-        optimizer.step()
-        
-        if batch_idx % 100 == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(dataloader.dataset),
-                100. * batch_idx / len(dataloader), loss.item() / len(data)))
-    print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(dataloader.dataset)))
-    return train_loss / len(dataloader.dataset)
 
-def test(model, dataloader):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    optimizer.zero_grad()
+    
+    recon_batch, mu, log_var, loss = model(train_loader)
+    
+    loss.backward()
+    optimizer.step()
+        
+    total_loss += loss.item()
+            
+    #print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss/len(train_loader)}")
+    return train_loss
+
+
+def test(model, test_loader):
     model.eval()
     test_loss= 0
     with torch.no_grad():
-        for data, _ in dataloader:
+        for data, _ in test_loader:
             data = data.cuda()
-            recon, mu, log_var = model(data)
+            recon, mu, log_var, final_loss = model(data)
             
             # sum up batch loss
-            test_loss += final_loss(recon, data, mu, log_var).item()
-    test_loss /= len(dataloader.dataset)
+            test_loss += final_loss.item()
+    test_loss /= len(test_loader)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     return test_loss

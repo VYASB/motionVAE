@@ -53,3 +53,7 @@ class DataParser:
             motions.append(motion)
         
         return np.array(motions)
+    
+    def split_data(self, motions, split_ratio=0.8):
+        train_motions, test_motions = train_test_split(motions, test_size=1 - split_ratio, random_state=42)
+        return train_motions, test_motions
