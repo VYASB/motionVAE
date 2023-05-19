@@ -2,6 +2,8 @@ import os
 import numpy as np
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+from torch.utils.data import Dataset
+import torch
 
 class MotionDataParser:
     def __init__(self, data_dir):
@@ -14,7 +16,8 @@ class MotionDataParser:
         
         for file_path in file_paths:
             data = np.load(file_path)
-            motion = data['poses']  # Replace 'motion' with the appropriate array name in your .npz file
+            motion = data['poses'][0:100][:]  # Replace 'motion' with the appropriate array name in your .npz file
+            print(motion.shape)
             motions.append(motion)
         
         return np.array(motions)
@@ -34,3 +37,19 @@ def save_loss_plot(train_loss, valid_loss):
     plt.legend()
     plt.savefig('D:/ShapeShifter23/motionVAE/outputs/loss.jpg')
     plt.show()
+
+class DataParser:
+    def __init__(self, data_dir):
+        self.data_dir = data_dir
+
+    def get_motion(self):
+        motions = []
+        file_names = os.listdir(self.data_dir)
+        data_dir = [os.path.join(self.data_dir, file_name) for file_name in file_names]
+        
+        for file_path in data_dir:
+            data = np.load(file_path)
+            motion = data['poses'][0:200][:]  # Replace 'motion' with the appropriate array name in your .npz file
+            motions.append(motion)
+        
+        return np.array(motions)

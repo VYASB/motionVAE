@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import scipy
 import numpy
+from utils import DataParser
 
 class MotionEncoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim):
@@ -39,12 +40,23 @@ latent_dim = 32
 encoder = MotionEncoder(input_dim, hidden_dim, latent_dim)
 
 # Generate random motion data for demonstration purposes
-batch_size = 1  # For simplicity, considering a single motion sequence
+batch_size = 30  # For simplicity, considering a single motion sequence
 seq_len = 20
-motion_data = torch.randn(batch_size, seq_len, input_dim)
+motion_data1 = torch.randn(batch_size, seq_len, input_dim)
+file_paths = 'D:/ShapeShifter23/motionVAE/data'
+motions = DataParser(file_paths).get_motion()
+
+#motion_data = torch.unsqueeze(torch.from_numpy(motion.get_motion()), dim=0)
+motion_data = torch.zeros(len(motions), motions.shape[1], motions.shape[2])
+
+for i, motion_array in enumerate(motions):
+    motion_data[i] = torch.from_numpy(motion_array)
+
+motion_data = motion_data.to(torch.float32)
+
 
 # Pass the motion data through the encoder
 latent_representation = encoder(motion_data)
 
-# Print the latent representation
+
 print(latent_representation.shape)

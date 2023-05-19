@@ -54,4 +54,3 @@ save_loss_plot(train_loss, valid_loss)
 torch.save(vae.state_dict(), 'D:/ShapeShifter23/ShapeShifterTesting/outputs/model.pt')
 
 print('TRAINING COMPLETE')
-
