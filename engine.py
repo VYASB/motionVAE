@@ -19,34 +19,37 @@ import torch
 #     return BCE+KLD
 
 
-def train(model, train_loader, optimizer):
+def train(model, train_data, optimizer, device):
     model.train()
-    train_loss = 0
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    train_loss = 0.0
+    
+    # Move the training data to the specified device
+    train_data = train_data.to(device)
+    
     optimizer.zero_grad()
     
-    recon_batch, mu, log_var, loss = model(train_loader)
+    # Forward pass
+    reconstructed_motion, mu, var, loss = model(train_data)
     
+    # Backward pass
     loss.backward()
     optimizer.step()
-        
-    total_loss += loss.item()
-            
-    #print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss/len(train_loader)}")
+    
+    train_loss += loss.item()
+    
     return train_loss
 
-
-def test(model, test_loader):
+def test(model, test_data, device):
     model.eval()
-    test_loss= 0
+    test_loss = 0.0
+    
+    # Move the test data to the specified device
+    test_data = test_data.to(device)
+    
+    # Forward pass
     with torch.no_grad():
-        for data, _ in test_loader:
-            data = data.cuda()
-            recon, mu, log_var, final_loss = model(data)
-            
-            # sum up batch loss
-            test_loss += final_loss.item()
-    test_loss /= len(test_loader)
-    print('====> Test set loss: {:.4f}'.format(test_loss))
+        reconstructed_motion, mu, var, loss = model(test_data)
+    
+    test_loss += loss.item()
+    
     return test_loss

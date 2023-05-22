@@ -13,7 +13,6 @@ class MotionAutoencoder(nn.Module):
         
         # Encoder layers
         self.encoder_lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
-        self.encoder_fc = nn.Linear(hidden_dim, latent_dim)
         self.encoder_fc_mu = nn.Linear(hidden_dim, latent_dim)
         self.encoder_fc_var = nn.Linear(hidden_dim, latent_dim)
         
@@ -24,17 +23,11 @@ class MotionAutoencoder(nn.Module):
     
     def encode(self, motion):
         # motion shape: (batch_size, seq_len, input_dim)
-        batch_size, seq_len, _ = motion.size()
-        
-        # Initialize hidden state and cell state for encoder
-        hidden_state = torch.zeros(1, batch_size, self.hidden_dim)
-        cell_state = torch.zeros(1, batch_size, self.hidden_dim)
-        
-        # Pass the motion sequence through the LSTM
-        _, (final_hidden_state, _) = self.encoder_lstm(motion, (hidden_state, cell_state))
+        _, (final_hidden_state, _) = self.encoder_lstm(motion)
         
         # Extract the final hidden state
         final_hidden_state = final_hidden_state.squeeze(0)
+        print(final_hidden_state.shape)
         
         # Pass the final hidden state through the fully connected layers
         mu = self.encoder_fc_mu(final_hidden_state)
@@ -46,6 +39,7 @@ class MotionAutoencoder(nn.Module):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         z = mean + eps * std
+        print(z.shape)
         return z
     
     def decode(self, latent_representation, seq_len):
@@ -54,30 +48,29 @@ class MotionAutoencoder(nn.Module):
         
         # Pass the latent representation through the fully connected layer
         hidden_state = self.decoder_fc(latent_representation)
-        hidden_state = hidden_state.unsqueeze(1)
+        print("fierst", hidden_state.shape)
         
+        # Reshape the hidden state to match the LSTM input shape
+        hidden_state = hidden_state.unsqueeze(0).repeat(self.decoder_lstm.num_layers, 1, 1)
+        print("second", hidden_state.shape)
+    
         # Initialize cell state for decoder
-        cell_state = torch.zeros(1, batch_size, self.hidden_dim)
+        cell_state = torch.zeros(self.decoder_lstm.num_layers, batch_size, self.hidden_dim)
+        print("cel state: ", cell_state.shape)
         
-        # Initialize output sequence
-        output_sequence = []
+        # # Initialize cell state for decoder
+        # cell_state = torch.zeros(1, batch_size, self.hidden_dim)
         
         # Generate motion sequence using LSTM
-        for _ in range(seq_len):
-            output, (hidden_state, cell_state) = self.decoder_lstm(hidden_state, (hidden_state, cell_state))
-            output_sequence.append(output)
+        motion_sequence, _ = self.decoder_lstm(hidden_state, (hidden_state, cell_state))
         
-        # Convert output sequence to tensor
-        output_sequence = torch.cat(output_sequence, dim=1)
-        
-        # Pass the output sequence through the output layer
-        motion_sequence = self.decoder_output_layer(output_sequence)
+        # Pass the motion sequence through the output layer
+        motion_sequence = self.decoder_output_layer(motion_sequence)
         
         return motion_sequence
     
     def forward(self, motion):
         # motion shape: (batch_size, seq_len, input_dim)
-        batch_size, seq_len, _ = motion.size()
         
         # Encode the motion sequence
         mu, var = self.encode(motion)
@@ -86,7 +79,7 @@ class MotionAutoencoder(nn.Module):
         latent_representation = self.reparameterize(mu, var)
         
         # Decode the latent representation
-        reconstructed_motion = self.decode(latent_representation, seq_len)
+        reconstructed_motion = self.decode(latent_representation, motion.size(1))
         
         # Reconstruction loss
         reconstruction_loss = nn.MSELoss()(reconstructed_motion, motion)
@@ -133,24 +126,39 @@ train_loss = []
 valid_loss =[]
 print(f"The device is: {device}")
 
-for epoch in trange(epochs):
-    #  print(f"Epoch {epoch+1} of {epochs}")
-     train_epoch_loss = train(vae, train_motion_data, optimizer)
-     valid_epoch_loss = test(vae, test_motion_data)
+# Training loop
+for epoch in range(epochs):
+    train_loss = train(vae, train_motion_data, optimizer, device)
+    valid_loss = test(vae, test_motion_data, device)
+    
+    train_loss.append(train_loss)
+    valid_loss.append(valid_loss)
+    
+    print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.4f}, Valid Loss: {valid_loss:.4f}")
 
-     train_loss.append(train_epoch_loss)
-     valid_loss.append(valid_epoch_loss)
-
-     ##Save the reconstructed image from the validation loop
-    # save_reconstructed_images(recon_images, epoch+1)
-
-     ##convert the reconstructed images to PyTorch image grid format
-     #image_grid = make_grid(recon_images.detach().cpu())
-   #  grid_images.append(image_grid)
-
-     print(f"Train Loss: {train_epoch_loss: .4f}")
-     print(f"Val Loss: {valid_epoch_loss: .4f}")
-
+# Save the trained model
 torch.save(vae.state_dict(), 'D:/ShapeShifter23/motionVAE/outputs/model.pt')
 
-print('TRAINING COMPLETE')
+print("Training complete!")
+
+# for epoch in trange(epochs):
+#     #  print(f"Epoch {epoch+1} of {epochs}")
+#      train_epoch_loss = train(vae, train_motion_data, optimizer, device)
+#      valid_epoch_loss = test(vae, test_motion_data, device)
+
+#      train_loss.append(train_epoch_loss)
+#      valid_loss.append(valid_epoch_loss)
+
+#      ##Save the reconstructed image from the validation loop
+#     # save_reconstructed_images(recon_images, epoch+1)
+
+#      ##convert the reconstructed images to PyTorch image grid format
+#      #image_grid = make_grid(recon_images.detach().cpu())
+#    #  grid_images.append(image_grid)
+
+#      print(f"Train Loss: {train_epoch_loss: .4f}")
+#      print(f"Val Loss: {valid_epoch_loss: .4f}")
+
+# torch.save(vae.state_dict(), 'D:/ShapeShifter23/motionVAE/outputs/model.pt')
+
+# print('TRAINING COMPLETE')

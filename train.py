@@ -34,8 +34,8 @@ print(f"The device is: {device}")
 
 for epoch in range(epochs):
      print(f"Epoch {epoch+1} of {epochs}")
-     train_epoch_loss = train(vae, train_motions, epoch, optimizer)
-     valid_epoch_loss = test(vae, test_motions)
+     train_epoch_loss = train(vae, train_motions, epoch, optimizer, device)
+     valid_epoch_loss = test(vae, test_motions, device)
 
      train_loss.append(train_epoch_loss)
      valid_loss.append(valid_epoch_loss)
